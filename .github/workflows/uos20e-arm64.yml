@@ -33,7 +33,9 @@ jobs:
     permissions:
       contents: read
     env:
-      UOS_IMAGE: ghcr.io/fishmagic/uos20e-arm64:latest
+      # Bootstrap profile: Debian buster central packages matching UOS20E's
+      # glibc 2.28/GCC8/WebKitGTK 4.0 ABI. Switch to :latest after UOS auth works.
+      UOS_IMAGE: ghcr.io/fishmagic/uos20e-arm64:central-buster
 
     steps:
       - name: Checkout
