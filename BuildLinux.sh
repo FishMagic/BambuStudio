@@ -98,23 +98,30 @@ VERSION=$(awk -F= '/^VERSION_ID=/ {print $2}' /etc/os-release)
 # OSLIKE is a space-delineated list of similar distributions
 OSLIKE=$(awk -F= '/^ID_LIKE=/ {print $2}' /etc/os-release | tr -d '"')
 
-# Iterate over a list of candidate distribution targets, first match is used
-for CANDIDATE in ${DISTRIBUTION} ${OSLIKE}; do
-    if [ -f ./linux.d/${CANDIDATE} ]
-    then 
-        TARGET_DISTRO="${CANDIDATE}"
-        break
-    fi
-done
+# A containerized CI environment may intentionally expose a distro identity
+# different from the host runner.  Keep automatic detection as the default,
+# but allow the workflow to select a checked-in linux.d entry explicitly.
+if [[ -n "${BAMBU_TARGET_DISTRO:-}" ]]; then
+    TARGET_DISTRO="$BAMBU_TARGET_DISTRO"
+else
+    # Iterate over a list of candidate distribution targets, first match is used
+    for CANDIDATE in ${DISTRIBUTION} ${OSLIKE}; do
+        if [ -f "./linux.d/${CANDIDATE}" ]
+        then
+            TARGET_DISTRO="${CANDIDATE}"
+            break
+        fi
+    done
+fi
 
-if [ -z ${TARGET_DISTRO} ]
+if [ -z "${TARGET_DISTRO:-}" ]
 then
     echo "Your distribution does not appear to be currently supported by these build scripts"
     exit 1
 fi
 
 echo "OS distribution is '${DISTRIBUTION}'.  Using package dependencies for '${TARGET_DISTRO}'."
-source ./linux.d/${TARGET_DISTRO}
+source "./linux.d/${TARGET_DISTRO}"
 
 echo "FOUND_GTK3=${FOUND_GTK3}"
 if [[ -z "${FOUND_GTK3_DEV}" ]]

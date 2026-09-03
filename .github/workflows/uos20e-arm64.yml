@@ -1,0 +1,76 @@
+name: UOS20E native ARM64 BambuStudio
+
+on:
+  push:
+    branches:
+      - uos20e-adaptation
+    paths:
+      - 'BuildLinux.sh'
+      - 'linux.d/uos'
+      - 'deps/**'
+      - 'src/**'
+      - 'resources/**'
+      - 'CMakeLists.txt'
+      - 'version.inc'
+      - '.github/workflows/uos20e-arm64.yml'
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: 'ARM64 runner label; override with a larger self-hosted runner when needed'
+        required: false
+        default: ubuntu-24.04-arm
+        type: string
+
+concurrency:
+  group: bambustudio-uos20e-arm64-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Official BambuStudio on UOS20E arm64
+    runs-on: ${{ inputs.runner || vars.UOS_ARM_RUNNER || 'ubuntu-24.04-arm' }}
+    timeout-minutes: 360
+    permissions:
+      contents: read
+    env:
+      UOS_IMAGE: ghcr.io/${{ github.repository_owner }}/uos20e-arm64:latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      - name: Verify native ARM runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = aarch64
+          docker info
+          df -h
+
+      - name: Pull UOS20E build environment
+        shell: bash
+        run: docker pull "$UOS_IMAGE"
+
+      - name: Build official BambuStudio
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bambustudio-uos20e"
+          docker run --rm --platform linux/arm64 \
+            --volume "$GITHUB_WORKSPACE:/src:ro" \
+            --volume "$RUNNER_TEMP/bambustudio-uos20e:/out" \
+            --env BAMBU_JOBS="$(nproc)" \
+            "$UOS_IMAGE" /usr/local/bin/build-bambustudio-uos20e.sh
+
+      - name: Upload official artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: BambuStudio-uos20e-arm64-${{ github.sha }}
+          if-no-files-found: error
+          compression-level: 0
+          path: |
+            ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.tar.gz
+            ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.tar.zst
+            ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.sha256

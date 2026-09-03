@@ -1,0 +1,74 @@
+# UOS 20E (eagle) native arm64 build dependencies.
+# WebKitGTK 4.0 is intentional: UOS20E ships 2.38.x with the 4.0 API,
+# while the Debian/Ubuntu entry uses the newer 4.1 API.
+FOUND_GTK3=$(dpkg -l 'libgtk-3-0' 2>/dev/null | grep -m1 gtk-3 || true)
+
+REQUIRED_DEV_PACKAGES=(
+    autoconf
+    automake
+    build-essential
+    ninja-build
+    cmake
+    extra-cmake-modules
+    pkg-config
+    pkgconf
+    file
+    gettext
+    git
+    wget
+    curl
+    xz-utils
+    zstd
+    libtool
+    m4
+    texinfo
+    bison
+    flex
+    perl
+    python3
+    nasm
+    yasm
+    libgstreamer1.0-dev
+    libgstreamer-plugins-base1.0-dev
+    libsecret-1-dev
+    libssl-dev
+    libcurl4-openssl-dev
+    zlib1g-dev
+    libdbus-1-dev
+    libglew-dev
+    libudev-dev
+    libmspack-dev
+    libgl1-mesa-dev
+    libglu1-mesa-dev
+    libgtk-3-dev
+    libwebkit2gtk-4.0-dev
+    libjavascriptcoregtk-4.0-dev
+    libsoup2.4-dev
+    libxkbcommon-dev
+    libunwind-dev
+    libx264-dev
+    libbz2-dev
+    libwayland-dev
+    wayland-protocols
+    eglexternalplatform-dev
+)
+
+if [[ -n "${UPDATE_LIB:-}" ]]; then
+    if command -v sudo >/dev/null 2>&1 && [[ "$(id -u)" -ne 0 ]]; then
+        APT=(sudo apt-get)
+    else
+        APT=(apt-get)
+    fi
+    "${APT[@]}" update
+    "${APT[@]}" install -y "${REQUIRED_DEV_PACKAGES[@]}"
+    echo -e "done\n"
+    exit 0
+fi
+
+# Avoid relying on dpkg's package database in a minimal OCI rootfs: headers
+# are the contract BuildLinux.sh needs before configuring the dependency tree.
+if [[ -d /usr/include/gtk-3.0 && -f /usr/include/webkitgtk-4.0/webkit2/webkit2.h ]]; then
+    FOUND_GTK3_DEV=gtk3-dev
+else
+    FOUND_GTK3_DEV=""
+fi
