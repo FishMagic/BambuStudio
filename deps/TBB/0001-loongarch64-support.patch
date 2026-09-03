@@ -1,0 +1,33 @@
+--- a/src/tbb/tools_api/ittnotify_config.h
++++ b/src/tbb/tools_api/ittnotify_config.h
+@@ -159,6 +159,10 @@
+ #  define ITT_ARCH_ARM64  6
+ #endif /* ITT_ARCH_ARM64 */
+
++#ifndef ITT_ARCH_LOONG64
++#  define ITT_ARCH_LOONG64  7
++#endif /* ITT_ARCH_LOONG64 */
++
+ #ifndef ITT_ARCH
+ #  if defined _M_IX86 || defined __i386__
+ #    define ITT_ARCH ITT_ARCH_IA32
+@@ -172,6 +176,8 @@
+ #    define ITT_ARCH ITT_ARCH_ARM64
+ #  elif defined __powerpc64__
+ #    define ITT_ARCH ITT_ARCH_PPC64
++#  elif defined __loongarch64
++#    define ITT_ARCH ITT_ARCH_LOONG64
+ #  endif
+ #endif
+
+--- a/cmake/compilers/GNU.cmake
++++ b/cmake/compilers/GNU.cmake
+@@ -64,7 +64,7 @@
+ endif()
+
+ # For some reason GCC does not instrument code with Thread Sanitizer when lto is enabled and C linker is used.
+-if (NOT TBB_SANITIZE MATCHES "thread")
++if (NOT TBB_SANITIZE MATCHES "thread" AND TBB_ENABLE_IPO)
+     set(TBB_IPO_COMPILE_FLAGS $<$<NOT:$<CONFIG:Debug>>:-flto>)
+     set(TBB_IPO_LINK_FLAGS $<$<NOT:$<CONFIG:Debug>>:-flto>)
+ endif()

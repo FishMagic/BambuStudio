@@ -1,0 +1,106 @@
+# Galaxy Kylin V10 SP1 (10.1) loongarch64 native build profile.
+#
+# The package baseline is the official Kylin archive, not Loongson/Debian sid:
+# https://archive.kylinos.cn/kylin/KYLIN-ALL/dists/10.1/Release
+# That Release advertises loongarch64 and main/restricted/multiverse/universe.
+# Keep these values configurable for a host whose apt source list is managed
+# externally; this profile does not rewrite apt configuration or trust keys.
+KYLIN_REPOSITORY_URL="${KYLIN_REPOSITORY_URL:-https://archive.kylinos.cn/kylin/KYLIN-ALL}"
+KYLIN_SUITE="${KYLIN_SUITE:-10.1}"
+KYLIN_COMPONENTS="${KYLIN_COMPONENTS:-main restricted multiverse universe}"
+KYLIN_ARCHITECTURE="${KYLIN_ARCHITECTURE:-loongarch64}"
+# Set KYLIN_APT_SOURCE_LIST to use a preconfigured, signed Kylin source file.
+# Otherwise -u creates a temporary source list for the verified 10.1 archive.
+KYLIN_APT_SOURCE_LIST="${KYLIN_APT_SOURCE_LIST:-}"
+
+# Kylin 10.1's loongarch64 index provides WebKitGTK 4.0 (2.28.1-1kylin1k7),
+# JavaScriptCore 4.0 and libsoup 2.4. It does not advertise the 4.1 API, so
+# the source tree's 4.1-then-4.0 probe must resolve to 4.0 on this baseline.
+FOUND_GTK3=$(dpkg-query -W -f='${db:Status-Abbrev} ${binary:Package}\n' libgtk-3-0 2>/dev/null | grep -m1 '^ii ' || true)
+
+REQUIRED_DEV_PACKAGES=(
+    autoconf
+    automake
+    build-essential
+    ninja-build
+    cmake
+    extra-cmake-modules
+    pkg-config
+    pkgconf
+    file
+    gettext
+    git
+    wget
+    curl
+    xz-utils
+    zstd
+    libtool
+    m4
+    texinfo
+    bison
+    flex
+    perl
+    python3
+    nasm
+    yasm
+    libgstreamer1.0-dev
+    libgstreamer-plugins-base1.0-dev
+    libgstreamer-plugins-good1.0-dev
+    libsecret-1-dev
+    libssl-dev
+    libcurl4-openssl-dev
+    zlib1g-dev
+    libdbus-1-dev
+    libglew-dev
+    libudev-dev
+    libmspack-dev
+    libgl1-mesa-dev
+    libglu1-mesa-dev
+    libcairo2-dev
+    libgtk-3-dev
+    libwebkit2gtk-4.0-dev
+    libjavascriptcoregtk-4.0-dev
+    libsoup2.4-dev
+    libxkbcommon-dev
+    libosmesa6-dev
+    libx264-dev
+    libbz2-dev
+    libwayland-dev
+    wayland-protocols
+    eglexternalplatform-dev
+)
+
+if [[ -n "${UPDATE_LIB:-}" ]]; then
+    if command -v sudo >/dev/null 2>&1 && [[ "$(id -u)" -ne 0 ]]; then
+        APT=(sudo apt-get)
+    else
+        APT=(apt-get)
+    fi
+    echo "Kylin ${KYLIN_SUITE} (${KYLIN_ARCHITECTURE}) baseline: ${KYLIN_REPOSITORY_URL}"
+    echo "Required components: ${KYLIN_COMPONENTS}"
+
+    if [[ -n "${KYLIN_APT_SOURCE_LIST}" ]]; then
+        KYLIN_APT_ARGS=(-o "Dir::Etc::sourcelist=${KYLIN_APT_SOURCE_LIST}" -o "Dir::Etc::sourceparts=-")
+    else
+        KYLIN_APT_SOURCE_LIST="$(mktemp)"
+        trap 'rm -f "${KYLIN_APT_SOURCE_LIST}"' EXIT
+        printf 'deb [arch=%s] %s %s %s\n' "${KYLIN_ARCHITECTURE}" "${KYLIN_REPOSITORY_URL}" "${KYLIN_SUITE}" "${KYLIN_COMPONENTS}" >"${KYLIN_APT_SOURCE_LIST}"
+        KYLIN_APT_ARGS=(-o "Dir::Etc::sourcelist=${KYLIN_APT_SOURCE_LIST}" -o "Dir::Etc::sourceparts=-")
+    fi
+    # The Kylin signing key must already be installed; fail closed rather
+    # than silently falling back to a Loongson/Debian repository.
+    "${APT[@]}" update "${KYLIN_APT_ARGS[@]}"
+    "${APT[@]}" install -y "${KYLIN_APT_ARGS[@]}" "${REQUIRED_DEV_PACKAGES[@]}"
+    echo -e "done\n"
+    exit 0
+fi
+
+# Avoid relying on dpkg's package database in a minimal OCI rootfs: headers
+# are the contract BuildLinux.sh needs before configuring the dependency tree.
+# Kylin 10.1 intentionally has no loongarch64 libunwind-dev package; provide
+# that optional runtime dependency separately if a downstream build requires it.
+if [[ -d /usr/include/gtk-3.0 && -f /usr/include/webkitgtk-4.0/webkit2/webkit2.h ]]; then
+    FOUND_GTK3_DEV=gtk3-dev
+else
+    FOUND_GTK3_DEV=""
+fi

@@ -1,8 +1,17 @@
+set(_tbb_patch_command)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(loongarch64|loong64)$")
+    # oneTBB 2021.5.0 does not identify LoongArch for ITT notifications.
+    # Apply the existing LoongArch patch only on that target; other platforms
+    # retain the upstream source and build flags unchanged.
+    set(_tbb_patch_command
+        PATCH_COMMAND ${PATCH_CMD} ${CMAKE_CURRENT_LIST_DIR}/0001-loongarch64-support.patch)
+endif()
+
 bambustudio_add_cmake_project(
     TBB
     URL "https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2021.5.0.zip"
     URL_HASH SHA256=83ea786c964a384dd72534f9854b419716f412f9d43c0be88d41874763e7bb47
-    #PATCH_COMMAND ${PATCH_CMD} ${CMAKE_CURRENT_LIST_DIR}/0001-TBB-GCC13.patch
+    ${_tbb_patch_command}
     CMAKE_ARGS          
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5
         -DTBB_BUILD_SHARED=OFF

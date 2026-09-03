@@ -54,6 +54,25 @@ function(prepare_node_env)
             set(PNPM_URL "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/pnpm-linux-arm64")
             set(PNPM_EXEC_NAME "pnpm")
             set(PNPM_HASH "c2f9e9d42d81f9f40a0f895513d014a08d5ecb0abc9e15c426ecfde6f492706b")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(loongarch64|loong64)$")
+            # Kylin 10.1 has no official Node.js loongarch64 binary. This
+            # archive is the verified unofficial-builds v22.22.2 artifact;
+            # replace it only via a source-level change with a new hash.
+            set(NODE_URL "https://unofficial-builds.nodejs.org/download/release/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-loong64.tar.xz")
+            set(NODE_ARCHIVE_NAME "node-v${NODE_VERSION}-linux-loong64.tar.xz")
+            set(NODE_BIN_DIR "node-v${NODE_VERSION}-linux-loong64/bin")
+            set(NODE_EXEC "node")
+            set(NODE_HASH "425781f8c6595910d43ab4e4ff13c038e08cef8070b3c1c7d00815c933f5c850")
+
+            # Use the architecture-neutral npm package rather than pnpm's
+            # x64/arm64 native launcher. The package contains bin/pnpm.cjs
+            # and dist/pnpm.cjs, and is executed by the downloaded Node.
+            set(PNPM_URL "https://registry.npmjs.org/pnpm/-/pnpm-${PNPM_VERSION}.tgz")
+            set(PNPM_ARCHIVE_NAME "pnpm-${PNPM_VERSION}.tgz")
+            set(PNPM_HASH "889bac470ec93ccc3764488a19d6ba8f9c648ad5e50a9a6e4be3768a5de387a3")
+            set(PNPM_PACKAGE_DIR "${NODE_CACHE_DIR}/pnpm-${PNPM_VERSION}")
+            set(PNPM_EXECUTABLE "${PNPM_PACKAGE_DIR}/package/bin/pnpm.cjs")
+            set(PNPM_USE_NODE_SCRIPT TRUE)
         else()
             set(NODE_URL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz")
             set(NODE_ARCHIVE_NAME "node-v${NODE_VERSION}-linux-x64.tar.xz")
@@ -67,15 +86,17 @@ function(prepare_node_env)
         endif()
     endif()
 
-    # 定义最终的可执行文件路径
+    # Define the final Node executable path.
     set(NODE_EXECUTABLE "${NODE_CACHE_DIR}/${NODE_BIN_DIR}/${NODE_EXEC}")
-    # pnpm 放到 node 同目录，这样执行 pnpm 时 PATH 中天然能找到 node
-    set(PNPM_EXECUTABLE "${NODE_CACHE_DIR}/${NODE_BIN_DIR}/${PNPM_EXEC_NAME}")
+    # pnpm normally lives beside Node so PATH naturally finds Node.
+    if(NOT PNPM_USE_NODE_SCRIPT)
+        set(PNPM_EXECUTABLE "${NODE_CACHE_DIR}/${NODE_BIN_DIR}/${PNPM_EXEC_NAME}")
+    endif()
 
     message(STATUS "Checking for node binary at ${NODE_EXECUTABLE}")
     message(STATUS "Checking for pnpm binary ${PNPM_EXECUTABLE}")
 
-    # ============ Node.js 下载 + 解压 ============
+    # ============ Node.js download + extraction ==========
     if(NOT EXISTS "${NODE_EXECUTABLE}")
         message(STATUS "Downloading Node.js v${NODE_VERSION} from ${NODE_URL}")
         file(MAKE_DIRECTORY "${NODE_CACHE_DIR}")
@@ -119,7 +140,7 @@ function(prepare_node_env)
             message(FATAL_ERROR "Failed to extract Node.js archive: ${extract_error}")
         endif()
 
-        # 清理压缩包（节省空间）
+        # Remove the archive to save space.
         file(REMOVE "${NODE_CACHE_DIR}/${NODE_ARCHIVE_NAME}")
 
         if(NOT EXISTS "${NODE_EXECUTABLE}")
@@ -131,13 +152,20 @@ function(prepare_node_env)
         message(STATUS "Found cached Node.js: ${NODE_EXECUTABLE}")
     endif()
 
-    # ============ pnpm 独立二进制下载 ============
+    # ============ pnpm download ==========
     if(NOT EXISTS "${PNPM_EXECUTABLE}")
         message(STATUS "Downloading pnpm v${PNPM_VERSION} from ${PNPM_URL}")
+        if(PNPM_USE_NODE_SCRIPT)
+            file(MAKE_DIRECTORY "${PNPM_PACKAGE_DIR}")
+        endif()
 
+        set(PNPM_DOWNLOAD_PATH "${NODE_CACHE_DIR}/${PNPM_ARCHIVE_NAME}")
+        if(NOT PNPM_USE_NODE_SCRIPT)
+            set(PNPM_DOWNLOAD_PATH "${PNPM_EXECUTABLE}")
+        endif()
         file(DOWNLOAD
             ${PNPM_URL}
-            "${PNPM_EXECUTABLE}"
+            "${PNPM_DOWNLOAD_PATH}"
             SHOW_PROGRESS
             STATUS pnpm_dl_status
             EXPECTED_HASH SHA256=${PNPM_HASH}
@@ -146,11 +174,23 @@ function(prepare_node_env)
         list(GET pnpm_dl_status 0 pnpm_dl_code)
         list(GET pnpm_dl_status 1 pnpm_dl_msg)
         if(NOT pnpm_dl_code EQUAL 0)
-            file(REMOVE "${PNPM_EXECUTABLE}")
+            file(REMOVE "${PNPM_DOWNLOAD_PATH}")
             message(FATAL_ERROR "Failed to download pnpm: ${pnpm_dl_msg}")
         endif()
 
-        if(NOT WIN32)
+        if(PNPM_USE_NODE_SCRIPT)
+            execute_process(
+                COMMAND tar -xf "${PNPM_DOWNLOAD_PATH}"
+                WORKING_DIRECTORY "${PNPM_PACKAGE_DIR}"
+                RESULT_VARIABLE pnpm_extract_result
+                OUTPUT_VARIABLE pnpm_extract_output
+                ERROR_VARIABLE pnpm_extract_error
+            )
+            file(REMOVE "${PNPM_DOWNLOAD_PATH}")
+            if(NOT pnpm_extract_result EQUAL 0)
+                message(FATAL_ERROR "Failed to extract pnpm package: ${pnpm_extract_error}")
+            endif()
+        elseif(NOT WIN32)
             execute_process(
                 COMMAND chmod +x "${PNPM_EXECUTABLE}"
                 RESULT_VARIABLE chmod_result
@@ -161,15 +201,26 @@ function(prepare_node_env)
             endif()
         endif()
 
+        if(NOT EXISTS "${PNPM_EXECUTABLE}")
+            message(FATAL_ERROR "pnpm installation finished but executable not found: ${PNPM_EXECUTABLE}")
+        endif()
         message(STATUS "pnpm installed: ${PNPM_EXECUTABLE}")
     else()
         message(STATUS "Found cached pnpm: ${PNPM_EXECUTABLE}")
     endif()
 
-    # 设置输出变量（使用绝对路径）
+    if(PNPM_USE_NODE_SCRIPT)
+        set(PNPM_COMMAND "${NODE_EXECUTABLE}" "${PNPM_EXECUTABLE}")
+    else()
+        set(PNPM_COMMAND "${PNPM_EXECUTABLE}")
+    endif()
+
+    # Set output variables (absolute paths).
     set(NODE_EXECUTABLE "${NODE_EXECUTABLE}" PARENT_SCOPE)
     set(PNPM_EXECUTABLE "${PNPM_EXECUTABLE}" PARENT_SCOPE)
+    set(PNPM_COMMAND "${PNPM_COMMAND}" PARENT_SCOPE)
 endfunction()
+
 
 # 执行环境准备（在 config 阶段执行）
 prepare_node_env()
@@ -224,9 +275,9 @@ set(DEVICE_PAGE_BUILD_INPUTS
 add_custom_command(
     OUTPUT "${DEVICE_PAGE_BUILD_STAMP}"
     COMMAND echo "Running PNPM install"
-    COMMAND ${CMAKE_COMMAND} -E env "PATH=${DEVICE_PAGE_PATH}" ${PNPM_EXECUTABLE} install --store-dir ${PNPM_STORE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E env "PATH=${DEVICE_PAGE_PATH}" ${PNPM_COMMAND} install --store-dir ${PNPM_STORE_DIR}
     COMMAND echo "Running PNPM run build"
-    COMMAND ${CMAKE_COMMAND} -E env "PATH=${DEVICE_PAGE_PATH}" ${PNPM_EXECUTABLE} run build
+    COMMAND ${CMAKE_COMMAND} -E env "PATH=${DEVICE_PAGE_PATH}" ${PNPM_COMMAND} run build
     COMMAND echo "Removing page target directory"
     COMMAND ${CMAKE_COMMAND} -E remove_directory "${DEVICE_PAGE_TARGET_DIR}"
     COMMAND echo "Creating page target directory"
