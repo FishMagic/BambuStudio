@@ -33,7 +33,7 @@ jobs:
     permissions:
       contents: read
     env:
-      UOS_IMAGE: ghcr.io/${{ github.repository_owner }}/uos20e-arm64:latest
+      UOS_IMAGE: ghcr.io/fishmagic/uos20e-arm64:latest
 
     steps:
       - name: Checkout
