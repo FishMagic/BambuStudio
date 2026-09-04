@@ -1,7 +1,17 @@
 #!/bin/sh
-APPIMAGETOOLURL="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-
-
+case "$(uname -m)" in
+    x86_64|amd64)
+        APPIMAGETOOL_ARCH="x86_64"
+        ;;
+    aarch64|arm64)
+        APPIMAGETOOL_ARCH="aarch64"
+        ;;
+    *)
+        echo "Unsupported AppImage architecture: $(uname -m)" >&2
+        exit 1
+        ;;
+esac
+APPIMAGETOOLURL="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${APPIMAGETOOL_ARCH}.AppImage"
 APP_IMAGE="@SLIC3R_APP_KEY@_ubu64.AppImage"
 
 wget ${APPIMAGETOOLURL} -O ../appimagetool.AppImage
@@ -45,5 +55,5 @@ else
   ../appimagetool.AppImage . $([ ! -z "${container}" ] && echo '--appimage-extract-and-run')
 fi
 
-mv @SLIC3R_APP_KEY@-x86_64.AppImage ${APP_IMAGE}
+mv "@SLIC3R_APP_KEY@-${APPIMAGETOOL_ARCH}.AppImage" "${APP_IMAGE}"
 chmod +x ${APP_IMAGE}
