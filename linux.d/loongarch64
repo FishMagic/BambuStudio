@@ -28,6 +28,7 @@ REQUIRED_DEV_PACKAGES=(
     pkg-config
     pkgconf
     file
+    gawk
     gettext
     git
     wget
