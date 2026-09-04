@@ -3,6 +3,7 @@
 export ROOT=$(dirname $(readlink -f ${0}))
 
 set -e # exit on first error
+CMAKE_GENERATOR="${BAMBU_CMAKE_GENERATOR:-Ninja}"
 
 function check_available_memory_and_disk() {
     FREE_MEM_GB=$(free -g -t | grep 'Mem' | rev | cut -d" " -f1 | rev)
@@ -93,10 +94,10 @@ then
     exit 0
 fi
 
-DISTRIBUTION=$(awk -F= '/^ID=/ {print $2}' /etc/os-release)
-VERSION=$(awk -F= '/^VERSION_ID=/ {print $2}' /etc/os-release)
+DISTRIBUTION=$(sed -n 's/^ID=//p' /etc/os-release | tr -d '"')
+VERSION=$(sed -n 's/^VERSION_ID=//p' /etc/os-release | tr -d '"')
 # OSLIKE is a space-delineated list of similar distributions
-OSLIKE=$(awk -F= '/^ID_LIKE=/ {print $2}' /etc/os-release | tr -d '"')
+OSLIKE=$(sed -n 's/^ID_LIKE=//p' /etc/os-release | tr -d '"')
 
 # A containerized CI environment may intentionally expose a distro identity
 # different from the host runner.  Keep automatic detection as the default,
@@ -172,13 +173,13 @@ then
     then
         # have to build deps with debug & release or the cmake won't find everything it needs
         mkdir deps/build/release
-        cmake -S deps -B deps/build/release -G Ninja -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DDESTDIR="../destdir" ${BUILD_ARGS}
+        cmake -S deps -B deps/build/release -G "${CMAKE_GENERATOR}" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DDESTDIR="../destdir" ${BUILD_ARGS}
         cmake --build deps/build/release
         BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TYPE=Debug"
     fi
 
-    echo "cmake -S deps -B deps/build -G Ninja ${BUILD_ARGS}"
-    cmake -S deps -B deps/build -G Ninja -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ${BUILD_ARGS}
+    echo "cmake -S deps -B deps/build -G \"${CMAKE_GENERATOR}\" ${BUILD_ARGS}"
+    cmake -S deps -B deps/build -G "${CMAKE_GENERATOR}" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ${BUILD_ARGS}
     cmake --build deps/build
 fi
 
@@ -200,8 +201,8 @@ then
     else
         BUILD_ARGS="${BUILD_ARGS} -DBBL_RELEASE_TO_PUBLIC=1 -DBBL_INTERNAL_TESTING=${INTERNAL_TESTING}"
     fi
-    echo -e "cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH="${PWD}/deps/build/destdir/usr/local" -DSLIC3R_STATIC=1 ${BUILD_ARGS}"
-    cmake -S . -B build -G Ninja \
+    echo -e "cmake -S . -B build -G \"${CMAKE_GENERATOR}\" -DCMAKE_PREFIX_PATH=\"${PWD}/deps/build/destdir/usr/local\" -DSLIC3R_STATIC=1 ${BUILD_ARGS}"
+    cmake -S . -B build -G "${CMAKE_GENERATOR}" \
         -DCMAKE_PREFIX_PATH="${PWD}/deps/build/destdir/usr/local" \
         -DSLIC3R_STATIC=1 \
         ${BUILD_ARGS}
