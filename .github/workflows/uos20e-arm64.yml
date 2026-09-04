@@ -75,4 +75,6 @@ jobs:
           path: |
             ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.tar.gz
             ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.tar.zst
+            ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.AppImage
+            ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.deb
             ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.sha256
