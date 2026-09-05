@@ -25,6 +25,11 @@ on:
         required: false
         default: ''
         type: string
+      deps_only:
+        description: 'Build and upload only the reusable dependency cache'
+        required: false
+        default: false
+        type: boolean
 concurrency:
   group: bambustudio-kylinv10-loongarch64-${{ github.ref }}
   cancel-in-progress: true
@@ -98,10 +103,21 @@ jobs:
             --volume "$RUNNER_TEMP/loongarch64-deps:/deps-cache:ro" \
             --env BAMBU_JOBS="$(nproc)" \
             --env BAMBU_DEPS_ARCHIVE="$DEPS_ARCHIVE" \
+            --env BAMBU_DEPS_ONLY="${{ inputs.deps_only }}" \
             --env BAMBU_QEMU_TRANSLATED=1 \
             "$KYLIN_IMAGE" /usr/local/bin/build-bambustudio-kylinv10.sh
 
+      - name: Upload dependency cache
+        if: ${{ inputs.deps_only }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: BambuStudio-loongarch64-deps
+          if-no-files-found: error
+          compression-level: 0
+          path: ${{ runner.temp }}/bambustudio-loongarch64/BambuStudio_loongarch64_deps.tar.zst
+
       - name: Upload official artifacts
+        if: ${{ !inputs.deps_only }}
         uses: actions/upload-artifact@v6
         with:
           name: BambuStudio-kylinv10-loongarch64-${{ github.sha }}
