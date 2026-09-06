@@ -66,15 +66,42 @@ jobs:
             --env BAMBU_JOBS="$(nproc)" \
             "$UOS_IMAGE" /usr/local/bin/build-bambustudio-uos20e.sh
 
-      - name: Upload official artifacts
+      - name: Upload tar.gz artifact
         uses: actions/upload-artifact@v6
         with:
-          name: BambuStudio-uos20e-arm64-${{ github.sha }}
+          name: BambuStudio-uos20e-arm64-tar-gz-${{ github.sha }}
           if-no-files-found: error
           compression-level: 0
-          path: |
-            ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.tar.gz
-            ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.tar.zst
-            ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.AppImage
-            ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.deb
-            ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.sha256
+          path: ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.tar.gz
+
+      - name: Upload tar.zst artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: BambuStudio-uos20e-arm64-tar-zst-${{ github.sha }}
+          if-no-files-found: error
+          compression-level: 0
+          path: ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.tar.zst
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: BambuStudio-uos20e-arm64-AppImage-${{ github.sha }}
+          if-no-files-found: error
+          compression-level: 0
+          path: ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.AppImage
+
+      - name: Upload Debian artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: BambuStudio-uos20e-arm64-deb-${{ github.sha }}
+          if-no-files-found: error
+          compression-level: 0
+          path: ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.deb
+
+      - name: Upload checksums artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: BambuStudio-uos20e-arm64-checksums-${{ github.sha }}
+          if-no-files-found: error
+          compression-level: 0
+          path: ${{ runner.temp }}/bambustudio-uos20e/BambuStudio_*.sha256
