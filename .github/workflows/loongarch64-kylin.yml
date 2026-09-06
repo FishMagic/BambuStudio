@@ -31,7 +31,7 @@ on:
         default: false
         type: boolean
 concurrency:
-  group: bambustudio-kylinv10-loongarch64-${{ github.ref }}
+  group: bambustudio-kylinv10-loongarch64-${{ github.ref }}-${{ inputs.deps_only && 'deps' || 'main' }}
   cancel-in-progress: true
 
 jobs:
