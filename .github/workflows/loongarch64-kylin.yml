@@ -116,15 +116,38 @@ jobs:
           compression-level: 0
           path: ${{ runner.temp }}/bambustudio-loongarch64/BambuStudio_loongarch64_deps.tar.zst
 
-      - name: Upload official artifacts
+      - name: Upload tar.gz artifact
         if: ${{ !inputs.deps_only }}
         uses: actions/upload-artifact@v6
         with:
-          name: BambuStudio-kylinv10-loongarch64-${{ github.sha }}
+          name: BambuStudio-kylinv10-loongarch64-tar-gz-${{ github.sha }}
           if-no-files-found: error
           compression-level: 0
-          path: |
-            ${{ runner.temp }}/bambustudio-loongarch64/BambuStudio_*.tar.gz
-            ${{ runner.temp }}/bambustudio-loongarch64/BambuStudio_*.tar.zst
-            ${{ runner.temp }}/bambustudio-loongarch64/BambuStudio_*.deb
-            ${{ runner.temp }}/bambustudio-loongarch64/BambuStudio_*.sha256
+          path: ${{ runner.temp }}/bambustudio-loongarch64/BambuStudio_*.tar.gz
+
+      - name: Upload tar.zst artifact
+        if: ${{ !inputs.deps_only }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: BambuStudio-kylinv10-loongarch64-tar-zst-${{ github.sha }}
+          if-no-files-found: error
+          compression-level: 0
+          path: ${{ runner.temp }}/bambustudio-loongarch64/BambuStudio_*.tar.zst
+
+      - name: Upload Debian artifact
+        if: ${{ !inputs.deps_only }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: BambuStudio-kylinv10-loongarch64-deb-${{ github.sha }}
+          if-no-files-found: error
+          compression-level: 0
+          path: ${{ runner.temp }}/bambustudio-loongarch64/BambuStudio_*.deb
+
+      - name: Upload checksums artifact
+        if: ${{ !inputs.deps_only }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: BambuStudio-kylinv10-loongarch64-checksums-${{ github.sha }}
+          if-no-files-found: error
+          compression-level: 0
+          path: ${{ runner.temp }}/bambustudio-loongarch64/BambuStudio_*.sha256
